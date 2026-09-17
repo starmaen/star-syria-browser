@@ -232,12 +232,12 @@ class MainActivity : AppCompatActivity() {
         menuInfo: android.view.ContextMenu.ContextMenuInfo?
     ) {
         super.onCreateContextMenu(menu, v, menuInfo)
-        val result = webView.hitTestResult
-        val linkUrl: String? = when (result.type) {
-            WebView.HitTestResult.SRC_ANCHOR_TYPE,
-            WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> result.extra
-            else -> null
-        } ?: return
+        val result = webView.hitTestResult ?: return
+        val type = result.type
+        if (type != WebView.HitTestResult.SRC_ANCHOR_TYPE &&
+            type != WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) return
+        // الإصلاح الحاسم: String وليس String?
+        val linkUrl: String = result.extra ?: return
 
         menu.setHeaderTitle(linkUrl)
         menu.add(0, MENU_OPEN_NEW_TAB, 0, getString(R.string.ctx_open_new_tab)).setOnMenuItemClickListener {
@@ -434,9 +434,8 @@ class MainActivity : AppCompatActivity() {
 
                     for (i in 0 until arr.length()) {
                         val obj = arr.getJSONObject(i)
-                        // استخدام toString() لضمان عدم وجود قيمة فارغة
-                        val labelValue = obj.optString("label", "الجودة ${i + 1}").toString()
-                        val urlValue = obj.optString("url", "").toString()
+                        val labelValue: String = obj.optString("label", "الجودة ${i + 1}").toString()
+                        val urlValue: String = obj.optString("url", "").toString()
                         if (urlValue.isNotEmpty()) {
                             labels.add(labelValue)
                             urls.add(urlValue)
@@ -448,8 +447,7 @@ class MainActivity : AppCompatActivity() {
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle(R.string.choose_quality)
                         .setItems(labels.toTypedArray()) { _, which ->
-                            // استخدام toString() مرة أخيرة لضمان النوع String
-                            val selectedUrl = urls[which].toString()
+                            val selectedUrl: String = urls[which].toString()
                             downloadUrl(selectedUrl)
                         }
                         .show()
