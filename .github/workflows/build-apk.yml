@@ -7,9 +7,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # استخدام نسخة ubuntu مستقرة لتجنب المشاكل
+    runs-on: ubuntu-22.04
     steps:
-      # 1. جلب الكود من المستودع
+      # 1. جلب الكود
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -21,38 +22,22 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # 3. الموافقة على رخص الأندرويد
-      - name: Accept Android SDK Licenses
+      # 3. إجبار المشروع على استخدام نسخة Gradle مستقرة (8.7)
+      - name: Force stable Gradle version
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-      # 4. البحث الذكي عن المشروع وبناء الـ APK
-      - name: Locate Project and Build APK
-        run: |
-          # البحث عن ملف build.gradle لمعرفة مجلد المشروع
-          build_gradle_path=$(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
-          
-          if [ -z "$build_gradle_path" ]; then
-            echo "Error: No build.gradle file found in the repository!"
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+            ./gradlew wrapper --gradle-version 8.7
+          else
+            echo "Error: gradlew not found! Please ensure your repository has the Gradle wrapper files."
             exit 1
           fi
-          
-          # الانتقال إلى مجلد المشروع
-          project_dir=$(dirname "$build_gradle_path")
-          echo "Found Android project in: $project_dir"
-          cd "$project_dir"
-          
-          # تشغيل البناء باستخدام gradlew المحلي أو gradle العام
-          if [ -f "./gradlew" ]; then
-            echo "Using local gradlew..."
-            chmod +x ./gradlew
-            ./gradlew assembleDebug --stacktrace
-          else
-            echo "gradlew not found! Using global gradle..."
-            gradle assembleDebug --stacktrace
-          fi
 
-      # 5. رفع ملف الـ APK الناتج (يبحث في كل المجلدات تلقائياً)
+      # 4. بناء الـ APK مباشرة
+      - name: Build APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      # 5. رفع ملف الـ APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
