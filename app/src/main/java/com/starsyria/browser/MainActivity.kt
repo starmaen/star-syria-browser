@@ -16,10 +16,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.ArrayList
 
-/**
- * الشاشة الرئيسية لمتصفح "النجم السوري" (Star Syria Browser).
- */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
@@ -430,25 +428,34 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val arr = JSONArray(sourcesJson)
                     if (arr.length() == 0) return@runOnUiThread
-                    
-                    val labels = Array<CharSequence>(arr.length()) { "" }
-                    // التعديل الحاسم: تعريف المصفوفة كـ Array<String> صريحة
-                    val urls = Array<String>(arr.length()) { "" }
-                    
+
+                    val labels = ArrayList<String>()
+                    val urls = ArrayList<String>()
+
                     for (i in 0 until arr.length()) {
                         val obj = arr.getJSONObject(i)
-                        labels[i] = obj.optString("label", "الجودة ${i + 1}")
-                        urls[i] = obj.optString("url", "")
+                        // استخدام toString() لضمان عدم وجود قيمة فارغة
+                        val labelValue = obj.optString("label", "الجودة ${i + 1}").toString()
+                        val urlValue = obj.optString("url", "").toString()
+                        if (urlValue.isNotEmpty()) {
+                            labels.add(labelValue)
+                            urls.add(urlValue)
+                        }
                     }
-                    
+
+                    if (labels.isEmpty()) return@runOnUiThread
+
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle(R.string.choose_quality)
-                        .setItems(labels) { _, which ->
-                            // التعديل الحاسم: استخدام ?: "" لضمان عدم وجود قيمة فارغة
-                            downloadUrl(urls[which] ?: "")
+                        .setItems(labels.toTypedArray()) { _, which ->
+                            // استخدام toString() مرة أخيرة لضمان النوع String
+                            val selectedUrl = urls[which].toString()
+                            downloadUrl(selectedUrl)
                         }
                         .show()
-                } catch (_: Exception) { }
+                } catch (e: Exception) {
+                    // تجاهل
+                }
             }
         }
     }
