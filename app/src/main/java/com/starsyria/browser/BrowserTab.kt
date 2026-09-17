@@ -1,9 +1,7 @@
 package com.starsyria.browser
 
-/** يمثل تبويب (صفحة مفتوحة) واحد في متصفح النجم السوري. */
 data class BrowserTab(
-    var url: String,
-    var title: String = "صفحة جديدة",
-    var faviconBytes: ByteArray? = null,
-    var isIncognito: Boolean = false
+    var url: String = "", // جعلناها String عادية وليست String? لحل مشكلة Type Mismatch
+    var title: String = url,
+    val isIncognito: Boolean = false
 )
