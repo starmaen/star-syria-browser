@@ -19,27 +19,27 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # تم ترقية هذه الأداة إلى الإصدار v4 لحل المشكلة
+      # تجهيز بيئة الأندرويد
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
       - name: Accept Android Licenses
         run: yes | sdkmanager --licenses || true
 
-      - name: Fix Gradle Version to 8.7
+      # الخطوة الأهم: تحميل نسخة Gradle 8.7 يدوياً واستخدامها
+      - name: Download and Setup Gradle 8.7
         run: |
-          find . -name "gradle-wrapper.properties" -exec sed -i 's/gradle-9.7.1-bin.zip/gradle-8.7-bin.zip/g' {} \;
-          echo "Gradle version fixed."
+          echo "Downloading Gradle 8.7..."
+          wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
+          unzip -q gradle-8.7-bin.zip
+          echo "Gradle 8.7 is ready."
 
+      # البناء باستخدام النسخة التي تم تحميلها
       - name: Build APK
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            ./gradlew assembleDebug --stacktrace
-          else
-            echo "gradlew not found, trying system gradle..."
-            gradle assembleDebug --stacktrace
-          fi
+          cd $(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1 | xargs dirname)
+          echo "Building in directory: $(pwd)"
+          ../gradle-8.7/bin/gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
