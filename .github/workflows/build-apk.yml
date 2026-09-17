@@ -1,38 +1,41 @@
 name: Build APK
 
-# يشتغل تلقائياً عند كل رفع (push) على الفرع الرئيسي، أو يدوياً من تبويب Actions
 on:
   push:
-    branches: [ master, main ]
+    branches: [ "master", "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # 1. جلب الكود من المستودع
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2. إعداد جافا 17 (النسخة المستقرة والمطلوبة لأندرويد)
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      # نعتمد على Android SDK المثبت مسبقاً على سيرفر GitHub نفسه بدل إضافة خارجية
-      - name: Accept Android SDK licenses and install required packages
-        run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+      # 3. إعداد الأندرويد والموافقة على الرخص تلقائياً (هذا البديل الآمن والذكي للسطر المسبب للمشكلة)
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v3
+      # 4. إعطاء صلاحية التنفيذ لملف gradlew
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x ./gradlew
 
+      # 5. بناء تطبيق الـ APK
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK artifact
+      # 6. رفع ملف الـ APK الناتج لتتمكن من تحميله وتجربته
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: StarSyriaBrowser-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Browser-App-Debug
+          path: app/build/outputs/apk/debug/*.apk
