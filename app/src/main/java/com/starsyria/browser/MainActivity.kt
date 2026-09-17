@@ -430,17 +430,22 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val arr = JSONArray(sourcesJson)
                     if (arr.length() == 0) return@runOnUiThread
+                    
                     val labels = Array<CharSequence>(arr.length()) { "" }
-                    val urls = Array(arr.length()) { "" }
+                    // التعديل الحاسم: تعريف المصفوفة كـ Array<String> صريحة
+                    val urls = Array<String>(arr.length()) { "" }
+                    
                     for (i in 0 until arr.length()) {
                         val obj = arr.getJSONObject(i)
                         labels[i] = obj.optString("label", "الجودة ${i + 1}")
-                        urls[i] = obj.optString("url", "") 
+                        urls[i] = obj.optString("url", "")
                     }
+                    
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle(R.string.choose_quality)
                         .setItems(labels) { _, which ->
-                            downloadUrl(urls[which]) 
+                            // التعديل الحاسم: استخدام ?: "" لضمان عدم وجود قيمة فارغة
+                            downloadUrl(urls[which] ?: "")
                         }
                         .show()
                 } catch (_: Exception) { }
