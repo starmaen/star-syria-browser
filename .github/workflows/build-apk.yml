@@ -27,29 +27,35 @@ jobs:
 
       - name: Download and Setup Gradle 8.7
         run: |
-          echo "Downloading Gradle 8.7..."
           wget -q https://services.gradle.org/distributions/gradle-8.7-bin.zip
           unzip -q gradle-8.7-bin.zip
-          echo "Gradle 8.7 is ready."
+
+      - name: Prepare Build Environment
+        run: |
+          # إنشاء local.properties في الجذر
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          
+          # إصلاح gradle.properties لضمان دعم AndroidX
+          if [ ! -f gradle.properties ]; then touch gradle.properties; fi
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> gradle.properties
 
       - name: Build APK
         run: |
-          # البحث عن مجلد المشروع
-          BUILD_GRADLE_PATH=$(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
-          if [ -z "$BUILD_GRADLE_PATH" ]; then
-            echo "Error: No build.gradle file found!"
-            exit 1
-          fi
-          PROJECT_DIR=$(dirname "$BUILD_GRADLE_PATH")
-          cd "$PROJECT_DIR"
-          
-          # إنشاء ملف local.properties وهو السبب الرئيسي لفشل البناء في السيرفرات
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "Created local.properties with SDK path: $ANDROID_HOME"
-          
-          # البناء
-          echo "Building in directory: $(pwd)"
-          $GITHUB_WORKSPACE/gradle-8.7/bin/gradle assembleDebug --stacktrace --warning-mode all
+          # البناء باستخدام Gradle 8.7 من المجلد الرئيسي
+          $GITHUB_WORKSPACE/gradle-8.7/bin/gradle assembleDebug --stacktrace
+
+      # خطوة ذكية: إذا فشل البناء، اطبع محتوى الملفات لكي نراها
+      - name: Debug Information (If Failure)
+        if: failure()
+        run: |
+          echo "=== Root build.gradle ==="
+          cat build.gradle || echo "Not found"
+          echo "=== settings.gradle ==="
+          cat settings.gradle || echo "Not found"
+          echo "=== app/build.gradle ==="
+          cat app/build.gradle || echo "Not found"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
