@@ -8,8 +8,9 @@
     android:gravity="center_vertical"
     android:background="?attr/selectableItemBackground">
 
+    <!-- المعرف tab_url يطابق ما يبحث عنه TabViewHolder.kt -->
     <TextView
-        android:id="@+id/tab_title"
+        android:id="@+id/tab_url"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
@@ -18,8 +19,9 @@
         android:maxLines="1"
         android:ellipsize="end" />
 
+    <!-- المعرف tab_close يطابق ما يبحث عنه TabViewHolder.kt -->
     <ImageButton
-        android:id="@+id/tab_close_btn"
+        android:id="@+id/tab_close"
         android:layout_width="32dp"
         android:layout_height="32dp"
         android:background="?attr/selectableItemBackgroundBorderless"
