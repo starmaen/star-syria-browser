@@ -22,8 +22,9 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Accept Android Licenses
-        run: yes | sdkmanager --licenses || true
+      - name: Install SDK 34 and Accept Licenses
+        run: |
+          yes | sdkmanager "platforms;android-34" "build-tools;34.0.0" --licenses || true
 
       - name: Download and Setup Gradle 8.7
         run: |
@@ -32,30 +33,29 @@ jobs:
 
       - name: Prepare Build Environment
         run: |
-          # إنشاء local.properties في الجذر
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          
-          # إصلاح gradle.properties لضمان دعم AndroidX
-          if [ ! -f gradle.properties ]; then touch gradle.properties; fi
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8" >> gradle.properties
 
       - name: Build APK
         run: |
-          # البناء باستخدام Gradle 8.7 من المجلد الرئيسي
-          $GITHUB_WORKSPACE/gradle-8.7/bin/gradle assembleDebug --stacktrace
-
-      # خطوة ذكية: إذا فشل البناء، اطبع محتوى الملفات لكي نراها
-      - name: Debug Information (If Failure)
-        if: failure()
-        run: |
-          echo "=== Root build.gradle ==="
-          cat build.gradle || echo "Not found"
-          echo "=== settings.gradle ==="
-          cat settings.gradle || echo "Not found"
-          echo "=== app/build.gradle ==="
-          cat app/build.gradle || echo "Not found"
+          # تشغيل البناء وتسجيل المخرجات
+          $GITHUB_WORKSPACE/gradle-8.7/bin/gradle assembleDebug --stacktrace > build_log.txt 2>&1 || true
+          
+          # التحقق من نجاح البناء
+          if grep -q "BUILD SUCCESSFUL" build_log.txt; then
+            echo "======================================"
+            echo "   ✅ BUILD SUCCESSFUL"
+            echo "======================================"
+          else
+            echo "======================================"
+            echo "   ❌ BUILD FAILED - EXACT ERROR:"
+            echo "======================================"
+            # طباعة الجزء المهم من الخطأ فقط
+            grep -A 15 "What went wrong" build_log.txt || tail -n 40 build_log.txt
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
