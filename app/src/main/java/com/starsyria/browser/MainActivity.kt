@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
 
         setupWebView()
         setupTabsDrawer()
+        setupLinkContextMenu()
         openNewTab("https://www.google.com")
 
         findViewById<android.widget.ImageButton>(R.id.btn_new_tab).setOnClickListener {
@@ -166,6 +167,68 @@ class MainActivity : AppCompatActivity() {
         if (openTabs.isEmpty()) openNewTab(url) else webView.loadUrl(url)
     }
 
+    // ---------- قائمة السياق (الضغط المطوّل على الروابط) ----------
+
+    /**
+     * يفعّل قائمة سياق أندرويد القياسية عند الضغط المطوّل على أي رابط داخل الصفحة:
+     * نسخ الرابط، مشاركته، فتحه بتبويب جديد، أو تنزيله مباشرة.
+     */
+    private fun setupLinkContextMenu() {
+        registerForContextMenu(webView)
+    }
+
+    override fun onCreateContextMenu(
+        menu: android.view.ContextMenu,
+        v: android.view.View,
+        menuInfo: android.view.ContextMenu.ContextMenuInfo?
+    ) {
+        super.onCreateContextMenu(menu, v, menuInfo)
+        val result = webView.hitTestResult
+        val linkUrl: String? = when (result.type) {
+            WebView.HitTestResult.SRC_ANCHOR_TYPE,
+            WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> result.extra
+            else -> null
+        } ?: return
+
+        menu.setHeaderTitle(linkUrl)
+        menu.add(0, MENU_OPEN_NEW_TAB, 0, getString(R.string.ctx_open_new_tab)).setOnMenuItemClickListener {
+            openNewTab(linkUrl); true
+        }
+        menu.add(0, MENU_COPY_LINK, 1, getString(R.string.ctx_copy_link)).setOnMenuItemClickListener {
+            copyToClipboard(linkUrl); true
+        }
+        menu.add(0, MENU_SHARE_LINK, 2, getString(R.string.ctx_share_link)).setOnMenuItemClickListener {
+            shareLink(linkUrl); true
+        }
+        menu.add(0, MENU_DOWNLOAD_LINK, 3, getString(R.string.ctx_download_link)).setOnMenuItemClickListener {
+            downloadUrl(linkUrl); true
+        }
+    }
+
+    private fun copyToClipboard(text: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("link", text))
+        android.widget.Toast.makeText(this, getString(R.string.ctx_link_copied), android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareLink(url: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+        }
+        startActivity(Intent.createChooser(shareIntent, getString(R.string.ctx_share_link)))
+    }
+
+    private fun downloadUrl(url: String) {
+        val request = DownloadManager.Request(Uri.parse(url)).apply {
+            setDescription("جاري التنزيل عبر النجم السوري")
+            setTitle(URLUtilFileName(url, null, null))
+            setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, URLUtilFileName(url, null, null))
+        }
+        (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+    }
+
     // ---------- VPN ----------
 
     /**
@@ -184,5 +247,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+    }
+
+    companion object {
+        private const val MENU_OPEN_NEW_TAB = 1
+        private const val MENU_COPY_LINK = 2
+        private const val MENU_SHARE_LINK = 3
+        private const val MENU_DOWNLOAD_LINK = 4
     }
 }
