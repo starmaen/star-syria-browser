@@ -1,0 +1,15 @@
+# قائمة أساسية لحظر الإعلانات والمتتبعات - قابلة للتوسيع لاحقاً
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+adservice.google.com
+ads.yahoo.com
+adnxs.com
+taboola.com
+outbrain.com
+scorecardresearch.com
+moatads.com
+adsafeprotected.com
+criteo.com
+pubmatic.com
+rubiconproject.com

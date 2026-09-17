@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="toolbar_bg">#1E1E2E</color>
+    <color name="drawer_bg">#F4F4F8</color>
+    <color name="accent_star">#FFC107</color>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Star Syria</string>
+    <string name="search_hint">ابحث أو أدخل رابطاً…</string>
+    <string name="new_tab">تبويب جديد</string>
+    <string name="open_tabs">التبويبات المفتوحة</string>
+    <string name="vpn">تفعيل VPN</string>
+    <string name="settings_title">الإعدادات</string>
+    <string name="player_title">مشغل الفيديو</string>
+    <string name="search_engine_label">محرك البحث الافتراضي</string>
+    <string name="clear_cache">تنظيف الكاش وبيانات التصفح</string>
+    <string name="version_format">Star Syria — الإصدار %1$s (%2$d)</string>
+</resources>
