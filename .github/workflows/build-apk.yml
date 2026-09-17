@@ -19,35 +19,32 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # الخطوة الأهم: إصلاح نسخة Gradle في المشروع
+      # تجهيز بيئة الأندرويد بشكل احترافي
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # قبول الرخص
+      - name: Accept Android Licenses
+        run: yes | sdkmanager --licenses || true
+
+      # إصلاح نسخة Gradle إلى 8.7
       - name: Fix Gradle Version to 8.7
         run: |
           find . -name "gradle-wrapper.properties" -exec sed -i 's/gradle-9.7.1-bin.zip/gradle-8.7-bin.zip/g' {} \;
-          find . -name "gradle-wrapper.properties" -exec sed -i 's/gradle-9.0-bin.zip/gradle-8.7-bin.zip/g' {} \;
-          echo "Gradle version has been fixed to 8.7"
+          echo "Gradle version fixed."
 
-      - name: Locate Project and Build APK
+      # البناء الفعلي
+      - name: Build APK
         run: |
-          build_gradle_path=$(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
-          if [ -z "$build_gradle_path" ]; then
-            echo "Error: No build.gradle file found!"
-            exit 1
-          fi
-          project_dir=$(dirname "$build_gradle_path")
-          echo "Found Android project in: $project_dir"
-          cd "$project_dir"
-          
           if [ -f "./gradlew" ]; then
-            echo "Using local gradlew..."
             chmod +x ./gradlew
             ./gradlew assembleDebug --stacktrace
           else
-            echo "gradlew not found! Downloading Gradle 8.7..."
-            wget https://services.gradle.org/distributions/gradle-8.7-bin.zip
-            unzip -q gradle-8.7-bin.zip
-            ./gradle-8.7/bin/gradle assembleDebug --stacktrace
+            echo "gradlew not found, trying system gradle..."
+            gradle assembleDebug --stacktrace
           fi
 
+      # رفع الملف
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
