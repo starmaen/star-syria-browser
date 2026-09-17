@@ -36,4 +36,15 @@
     <string name="reopen_closed_tab">استرجاع آخر تبويب مغلق</string>
     <string name="no_closed_tabs">لا يوجد تبويبات مغلقة لاسترجاعها</string>
     <string name="tab_reopened">تم استرجاع التبويب</string>
+
+    <!-- الصفحة الرئيسية واختصارات المواقع -->
+    <string name="home_title">الصفحة الرئيسية</string>
+    <string name="add_site">إضافة موقع</string>
+    <string name="add_site_name_hint">اسم الموقع</string>
+    <string name="add_site_url_hint">رابط الموقع (مثال: example.com)</string>
+    <string name="save">حفظ</string>
+    <string name="cancel">إلغاء</string>
+
+    <!-- تنزيل الفيديو بجودات مختلفة -->
+    <string name="choose_quality">اختر الجودة</string>
 </resources>

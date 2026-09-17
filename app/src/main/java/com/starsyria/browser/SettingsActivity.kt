@@ -21,7 +21,7 @@ class SettingsActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
 
         // اختيار محرك البحث الافتراضي
-        val engines = arrayOf("Google", "DuckDuckGo", "Bing")
+        val engines = arrayOf("Google", "Yandex", "DuckDuckGo", "Bing (Microsoft)")
         val spinner = findViewById<Spinner>(R.id.spinner_search_engine)
         spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, engines)
         val savedEngine = prefs.getString("search_engine", "Google")

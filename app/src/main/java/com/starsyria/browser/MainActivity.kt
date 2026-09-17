@@ -1,17 +1,22 @@
 package com.starsyria.browser
 
+import android.app.AlertDialog
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.InputType
 import android.webkit.*
+import android.widget.EditText
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * الشاشة الرئيسية لمتصفح "النجم السوري" (Star Syria Browser).
@@ -31,8 +36,9 @@ class MainActivity : AppCompatActivity() {
     // محركات البحث الأساسية - يختارها المستخدم من الإعدادات
     private val searchEngines = mapOf(
         "Google" to "https://www.google.com/search?q=",
+        "Yandex" to "https://yandex.com/search/?text=",
         "DuckDuckGo" to "https://duckduckgo.com/?q=",
-        "Bing" to "https://www.bing.com/search?q="
+        "Bing (Microsoft)" to "https://www.bing.com/search?q="
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,10 +55,10 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
         setupTabsDrawer()
         setupLinkContextMenu()
-        openNewTab("https://www.google.com")
+        openHomeTab()
 
         findViewById<android.widget.ImageButton>(R.id.btn_new_tab).setOnClickListener {
-            openNewTab(defaultHomeUrl())
+            openHomeTab()
         }
         findViewById<android.widget.ImageButton>(R.id.btn_tabs).setOnClickListener {
             drawerLayout.openDrawer(androidx.core.view.GravityCompat.END)
@@ -81,8 +87,6 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun defaultHomeUrl() = "https://www.google.com"
-
     /** يحدد إن كان النص المدخل رابطاً أو عبارة بحث، ويبني الرابط النهائي. */
     private fun resolveInput(input: String): String {
         val looksLikeUrl = input.contains(".") && !input.contains(" ")
@@ -106,6 +110,8 @@ class MainActivity : AppCompatActivity() {
             displayZoomControls = false
         }
 
+        webView.addJavascriptInterface(WebAppInterface(), "AndroidBridge")
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView,
@@ -120,11 +126,14 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
-                openTabs.getOrNull(currentTabIndex)?.let {
-                    it.url = url
-                    it.title = view.title ?: url
+                val currentTab = openTabs.getOrNull(currentTabIndex)
+                if (currentTab != null && currentTab.url != HOME_URL_MARKER) {
+                    currentTab.url = url
+                    currentTab.title = view.title ?: url
                     tabsRecycler.adapter?.notifyDataSetChanged()
                 }
+                // حقن سكربت زر تنزيل الفيديو (يعمل مع وسوم <video> القياسية بروابط مباشرة)
+                view.evaluateJavascript(VIDEO_DOWNLOAD_JS, null)
             }
         }
 
@@ -160,8 +169,7 @@ class MainActivity : AppCompatActivity() {
                     openTabs[position],
                     onClick = {
                         currentTabIndex = position
-                        applyIncognitoWebSettings(openTabs[position].isIncognito)
-                        webView.loadUrl(openTabs[position].url)
+                        navigateTabToWebView(openTabs[position])
                         drawerLayout.closeDrawers()
                     },
                     onClose = { closeTab(position) }
@@ -178,6 +186,25 @@ class MainActivity : AppCompatActivity() {
         tabsRecycler.adapter?.notifyDataSetChanged()
     }
 
+    /** يفتح تبويباً جديداً على "الصفحة الرئيسية" (شبكة اختصارات المواقع). */
+    private fun openHomeTab() {
+        openTabs.add(BrowserTab(HOME_URL_MARKER, title = getString(R.string.home_title), isIncognito = isIncognitoMode))
+        currentTabIndex = openTabs.size - 1
+        applyIncognitoWebSettings(isIncognitoMode)
+        loadHomePage()
+        tabsRecycler.adapter?.notifyDataSetChanged()
+    }
+
+    /** يحمّل الرابط أو الصفحة الرئيسية بحسب نوع التبويب في الـ WebView الحالي. */
+    private fun navigateTabToWebView(tab: BrowserTab) {
+        applyIncognitoWebSettings(tab.isIncognito)
+        if (tab.url == HOME_URL_MARKER) loadHomePage() else webView.loadUrl(tab.url)
+    }
+
+    private fun loadHomePage() {
+        webView.loadDataWithBaseURL(null, buildHomePageHtml(), "text/html", "utf-8", null)
+    }
+
     private fun loadInCurrentTab(url: String) {
         if (openTabs.isEmpty()) openNewTab(url) else webView.loadUrl(url)
     }
@@ -189,11 +216,10 @@ class MainActivity : AppCompatActivity() {
         closedTabsStack.add(removed)
 
         if (openTabs.isEmpty()) {
-            openNewTab(defaultHomeUrl())
+            openHomeTab()
         } else {
             if (currentTabIndex >= openTabs.size) currentTabIndex = openTabs.size - 1
-            applyIncognitoWebSettings(openTabs[currentTabIndex].isIncognito)
-            webView.loadUrl(openTabs[currentTabIndex].url)
+            navigateTabToWebView(openTabs[currentTabIndex])
         }
         tabsRecycler.adapter?.notifyDataSetChanged()
     }
@@ -207,8 +233,7 @@ class MainActivity : AppCompatActivity() {
         val tab = closedTabsStack.removeAt(closedTabsStack.size - 1)
         openTabs.add(tab)
         currentTabIndex = openTabs.size - 1
-        applyIncognitoWebSettings(tab.isIncognito)
-        webView.loadUrl(tab.url)
+        navigateTabToWebView(tab)
         tabsRecycler.adapter?.notifyDataSetChanged()
         android.widget.Toast.makeText(this, getString(R.string.tab_reopened), android.widget.Toast.LENGTH_SHORT).show()
     }
@@ -314,6 +339,147 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().setAcceptCookie(!incognito)
     }
 
+    // ---------- الصفحة الرئيسية واختصارات المواقع ----------
+
+    private fun defaultShortcutSites(): List<Pair<String, String>> = listOf(
+        "YouTube" to "https://www.youtube.com",
+        "Telegram" to "https://web.telegram.org",
+        "WhatsApp" to "https://web.whatsapp.com",
+        "GitHub" to "https://github.com",
+        "XDA" to "https://xdaforums.com"
+    )
+
+    private fun loadCustomSites(): List<Pair<String, String>> {
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val json = prefs.getString("custom_sites", "[]") ?: "[]"
+        val list = mutableListOf<Pair<String, String>>()
+        try {
+            val arr = JSONArray(json)
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                list.add(obj.getString("name") to obj.getString("url"))
+            }
+        } catch (_: Exception) { /* تجاهل أي خطأ تحليل وابدأ بقائمة فارغة */ }
+        return list
+    }
+
+    private fun saveCustomSite(name: String, url: String) {
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val current = loadCustomSites().toMutableList()
+        current.add(name to url)
+        val arr = JSONArray()
+        current.forEach { (n, u) ->
+            arr.put(JSONObject().apply { put("name", n); put("url", u) })
+        }
+        prefs.edit().putString("custom_sites", arr.toString()).apply()
+    }
+
+    /** يبني صفحة اختصارات HTML (يوتيوب، تلغرام، واتساب، GitHub، XDA + مواقع المستخدم المضافة). */
+    private fun buildHomePageHtml(): String {
+        val allSites = defaultShortcutSites() + loadCustomSites()
+        val tilesHtml = allSites.joinToString("\n") { (name, url) ->
+            val domain = Uri.parse(url).host ?: url
+            """
+            <div class="tile" onclick="AndroidBridge.openUrl('$url')">
+                <img src="https://www.google.com/s2/favicons?sz=64&domain=$domain" />
+                <span>${name.replace("'", "")}</span>
+            </div>
+            """.trimIndent()
+        }
+        return """
+        <html dir="rtl">
+        <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body { background:#1E1E2E; margin:0; padding:24px 16px; font-family:sans-serif; }
+            h2 { color:#FFC429; text-align:center; }
+            .grid { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; margin-top:20px; }
+            .tile { width:80px; text-align:center; cursor:pointer; }
+            .tile img { width:48px; height:48px; border-radius:12px; background:#2d2d44; padding:8px; }
+            .tile span { display:block; color:#eee; font-size:12px; margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            .add-tile { width:80px; text-align:center; cursor:pointer; }
+            .add-tile .plus { width:48px; height:48px; border-radius:12px; background:#2d2d44; color:#FFC429; font-size:28px; display:flex; align-items:center; justify-content:center; margin:0 auto; }
+        </style>
+        </head>
+        <body>
+            <h2>⭐ النجم السوري</h2>
+            <div class="grid">
+                $tilesHtml
+                <div class="add-tile" onclick="AndroidBridge.promptAddCustomSite()">
+                    <div class="plus">+</div>
+                    <span>${getString(R.string.add_site)}</span>
+                </div>
+            </div>
+        </body>
+        </html>
+        """.trimIndent()
+    }
+
+    private fun showAddSiteDialog() {
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 0)
+        }
+        val nameInput = EditText(this).apply { hint = getString(R.string.add_site_name_hint) }
+        val urlInput = EditText(this).apply {
+            hint = getString(R.string.add_site_url_hint)
+            inputType = InputType.TYPE_TEXT_VARIATION_URI
+        }
+        container.addView(nameInput)
+        container.addView(urlInput)
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.add_site)
+            .setView(container)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val name = nameInput.text.toString().trim()
+                var url = urlInput.text.toString().trim()
+                if (name.isNotEmpty() && url.isNotEmpty()) {
+                    if (!url.startsWith("http")) url = "https://$url"
+                    saveCustomSite(name, url)
+                    if (openTabs.getOrNull(currentTabIndex)?.url == HOME_URL_MARKER) loadHomePage()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** جسر JavaScript بين صفحات الويب وواجهة أندرويد (يُستخدم بصفحة الاختصارات وزر تنزيل الفيديو). */
+    inner class WebAppInterface {
+        @JavascriptInterface
+        fun openUrl(url: String) {
+            runOnUiThread { loadInCurrentTab(url) }
+        }
+
+        @JavascriptInterface
+        fun promptAddCustomSite() {
+            runOnUiThread { showAddSiteDialog() }
+        }
+
+        @JavascriptInterface
+        fun showVideoQualityPicker(sourcesJson: String) {
+            runOnUiThread {
+                try {
+                    val arr = JSONArray(sourcesJson)
+                    if (arr.length() == 0) return@runOnUiThread
+                    val labels = Array<CharSequence>(arr.length()) { "" }
+                    val urls = Array(arr.length()) { "" }
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.getJSONObject(i)
+                        labels[i] = obj.optString("label", "الجودة ${i + 1}")
+                        urls[i] = obj.optString("url")
+                    }
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle(R.string.choose_quality)
+                        .setItems(labels) { _, which ->
+                            urls[which].let { downloadUrl(it) }
+                        }
+                        .show()
+                } catch (_: Exception) { /* تجاهل استجابة غير صالحة */ }
+            }
+        }
+    }
+
     // ---------- VPN ----------
 
     /**
@@ -339,5 +505,59 @@ class MainActivity : AppCompatActivity() {
         private const val MENU_COPY_LINK = 2
         private const val MENU_SHARE_LINK = 3
         private const val MENU_DOWNLOAD_LINK = 4
+
+        /** معرّف داخلي يميّز تبويب "الصفحة الرئيسية" عن أي رابط ويب حقيقي. */
+        const val HOME_URL_MARKER = "startpage://home"
+
+        /**
+         * سكربت يُحقن بعد تحميل كل صفحة: يبحث عن وسوم <video> ويضيف زر تنزيل
+         * أسفل كل منها. عند الضغط يجمع كل روابط <source> المتاحة (الجودات المختلفة
+         * إن وُجدت) ويرسلها لأندرويد لعرضها كخيارات. يعمل مع الفيديو المباشر
+         * (روابط MP4 ونحوها)؛ لا يعمل مع منصات تشغّل الفيديو بطريقة مغلقة/محمية
+         * مثل يوتيوب، لأن هذه المنصات لا تعرض رابط فيديو مباشر أصلاً.
+         */
+        const val VIDEO_DOWNLOAD_JS = """
+        (function() {
+            function parseSources(video) {
+                var sources = [];
+                var srcEls = video.querySelectorAll('source');
+                if (srcEls.length > 0) {
+                    srcEls.forEach(function(s) {
+                        var label = s.getAttribute('label') || s.getAttribute('res') || s.getAttribute('title') || (s.src.split('/').pop());
+                        if (s.src) sources.push({url: s.src, label: label});
+                    });
+                }
+                if (sources.length === 0 && (video.currentSrc || video.src)) {
+                    sources.push({url: video.currentSrc || video.src, label: 'الجودة الافتراضية'});
+                }
+                return sources;
+            }
+            function addButton(video) {
+                if (video.dataset.starDlAdded) return;
+                video.dataset.starDlAdded = "1";
+                var btn = document.createElement('div');
+                btn.innerText = '⬇ تنزيل الفيديو';
+                btn.style.cssText = 'position:relative;z-index:9999;background:#FFC429;color:#1a1a2a;padding:8px 14px;border-radius:20px;text-align:center;font-family:sans-serif;font-size:14px;margin:6px auto;width:fit-content;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.3);';
+                btn.onclick = function(e) {
+                    e.preventDefault(); e.stopPropagation();
+                    var sources = parseSources(video);
+                    if (window.AndroidBridge && sources.length > 0) {
+                        AndroidBridge.showVideoQualityPicker(JSON.stringify(sources));
+                    }
+                };
+                if (video.parentNode) {
+                    video.parentNode.insertBefore(btn, video.nextSibling);
+                }
+            }
+            function scan() {
+                document.querySelectorAll('video').forEach(addButton);
+            }
+            scan();
+            if (!window.__starDlObserver) {
+                window.__starDlObserver = new MutationObserver(scan);
+                window.__starDlObserver.observe(document.body, {childList: true, subtree: true});
+            }
+        })();
+        """
     }
 }
