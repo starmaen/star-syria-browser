@@ -5,15 +5,14 @@ import android.widget.ImageButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class TabViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-    private val titleView: TextView = itemView.findViewById(R.id.tab_title)
-    private val urlView: TextView = itemView.findViewById(R.id.tab_url)
-    private val closeButton: ImageButton = itemView.findViewById(R.id.tab_close)
+class TabViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    // قمنا بتعديل الأسماء لتطابق ما يبحث عنه الكود لديك
+    private val urlView: TextView = view.findViewById(R.id.tab_url)
+    private val closeBtn: ImageButton = view.findViewById(R.id.tab_close)
 
     fun bind(tab: BrowserTab, onClick: () -> Unit, onClose: () -> Unit) {
-        titleView.text = if (tab.isIncognito) "🕵 ${tab.title}" else tab.title
-        urlView.text = tab.url
+        urlView.text = tab.title
         itemView.setOnClickListener { onClick() }
-        closeButton.setOnClickListener { onClose() }
+        closeBtn.setOnClickListener { onClose() }
     }
 }
