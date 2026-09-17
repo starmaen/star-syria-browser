@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.text.InputType
 import android.webkit.*
 import android.widget.EditText
-import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.drawerlayout.widget.DrawerLayout
@@ -20,8 +19,6 @@ import org.json.JSONObject
 
 /**
  * الشاشة الرئيسية لمتصفح "النجم السوري" (Star Syria Browser).
- * تحتوي: WebView، درج التبويبات المفتوحة، شريط بحث، تنزيل الملفات/الفيديو،
- * تنظيف الكاش، وزر مختصر لتفعيل VPN (يفتح تطبيق Proton VPN إن كان مثبتاً).
  */
 class MainActivity : AppCompatActivity() {
 
@@ -33,7 +30,6 @@ class MainActivity : AppCompatActivity() {
     private var currentTabIndex = 0
     private var isIncognitoMode = false
 
-    // محركات البحث الأساسية - يختارها المستخدم من الإعدادات
     private val searchEngines = mapOf(
         "Google" to "https://www.google.com/search?q=",
         "Yandex" to "https://yandex.com/search/?text=",
@@ -87,7 +83,6 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    /** يحدد إن كان النص المدخل رابطاً أو عبارة بحث، ويبني الرابط النهائي. */
     private fun resolveInput(input: String): String {
         val looksLikeUrl = input.contains(".") && !input.contains(" ")
         return if (looksLikeUrl) {
@@ -117,7 +112,6 @@ class MainActivity : AppCompatActivity() {
                 view: WebView,
                 request: WebResourceRequest
             ): WebResourceResponse? {
-                // فلترة الإعلانات: أي طلب لنطاق محظور يُرجع استجابة فارغة
                 if (AdBlocker.isBlocked(request.url.toString())) {
                     return WebResourceResponse("text/plain", "utf-8", null)
                 }
@@ -132,12 +126,10 @@ class MainActivity : AppCompatActivity() {
                     currentTab.title = view.title ?: url
                     tabsRecycler.adapter?.notifyDataSetChanged()
                 }
-                // حقن سكربت زر تنزيل الفيديو (يعمل مع وسوم <video> القياسية بروابط مباشرة)
                 view.evaluateJavascript(VIDEO_DOWNLOAD_JS, null)
             }
         }
 
-        // دعم تنزيل الملفات والفيديوهات عبر مدير التنزيلات النظامي
         webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
             val request = DownloadManager.Request(Uri.parse(url)).apply {
                 setMimeType(mimeType)
@@ -153,8 +145,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun URLUtilFileName(url: String, contentDisposition: String?, mimeType: String?): String =
         URLUtil.guessFileName(url, contentDisposition, mimeType)
-
-    // ---------- إدارة التبويبات ----------
 
     private fun setupTabsDrawer() {
         tabsRecycler.layoutManager = LinearLayoutManager(this)
@@ -186,7 +176,6 @@ class MainActivity : AppCompatActivity() {
         tabsRecycler.adapter?.notifyDataSetChanged()
     }
 
-    /** يفتح تبويباً جديداً على "الصفحة الرئيسية" (شبكة اختصارات المواقع). */
     private fun openHomeTab() {
         openTabs.add(BrowserTab(HOME_URL_MARKER, title = getString(R.string.home_title), isIncognito = isIncognitoMode))
         currentTabIndex = openTabs.size - 1
@@ -195,7 +184,6 @@ class MainActivity : AppCompatActivity() {
         tabsRecycler.adapter?.notifyDataSetChanged()
     }
 
-    /** يحمّل الرابط أو الصفحة الرئيسية بحسب نوع التبويب في الـ WebView الحالي. */
     private fun navigateTabToWebView(tab: BrowserTab) {
         applyIncognitoWebSettings(tab.isIncognito)
         if (tab.url == HOME_URL_MARKER) loadHomePage() else webView.loadUrl(tab.url)
@@ -209,7 +197,6 @@ class MainActivity : AppCompatActivity() {
         if (openTabs.isEmpty()) openNewTab(url) else webView.loadUrl(url)
     }
 
-    /** يغلق تبويباً محدداً ويحفظه في مكدس التبويبات المغلقة لاسترجاعه لاحقاً. */
     private fun closeTab(position: Int) {
         if (position !in openTabs.indices) return
         val removed = openTabs.removeAt(position)
@@ -224,7 +211,6 @@ class MainActivity : AppCompatActivity() {
         tabsRecycler.adapter?.notifyDataSetChanged()
     }
 
-    /** يعيد فتح آخر تبويب مغلق (يدعم استرجاعات متعددة متتالية). */
     private fun reopenLastClosedTab() {
         if (closedTabsStack.isEmpty()) {
             android.widget.Toast.makeText(this, getString(R.string.no_closed_tabs), android.widget.Toast.LENGTH_SHORT).show()
@@ -238,12 +224,6 @@ class MainActivity : AppCompatActivity() {
         android.widget.Toast.makeText(this, getString(R.string.tab_reopened), android.widget.Toast.LENGTH_SHORT).show()
     }
 
-    // ---------- قائمة السياق (الضغط المطوّل على الروابط) ----------
-
-    /**
-     * يفعّل قائمة سياق أندرويد القياسية عند الضغط المطوّل على أي رابط داخل الصفحة:
-     * نسخ الرابط، مشاركته، فتحه بتبويب جديد، أو تنزيله مباشرة.
-     */
     private fun setupLinkContextMenu() {
         registerForContextMenu(webView)
     }
@@ -300,12 +280,6 @@ class MainActivity : AppCompatActivity() {
         (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
     }
 
-    // ---------- التصفح الخفي (Incognito) ----------
-
-    /**
-     * تبديل وضع التصفح الخفي. أي تبويب جديد يُفتح بعدها لا يحفظ كوكيز أو كاش،
-     * ولا يُحفظ في سجل التصفح، وتُنظّف بيانات الجلسة عند إيقافه.
-     */
     private fun toggleIncognitoMode() {
         isIncognitoMode = !isIncognitoMode
         updateIncognitoIndicator()
@@ -315,7 +289,6 @@ class MainActivity : AppCompatActivity() {
         android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
 
         if (!isIncognitoMode) {
-            // عند إيقاف الوضع الخفي: نظّف أي بيانات جلسة تراكمت أثناءه
             CookieManager.getInstance().removeSessionCookies(null)
             webView.clearHistory()
         }
@@ -329,7 +302,6 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    /** يضبط إعدادات WebView بحيث لا يحتفظ بكاش/كوكيز/بيانات نماذج أثناء التصفح الخفي. */
     private fun applyIncognitoWebSettings(incognito: Boolean) {
         webView.settings.apply {
             cacheMode = if (incognito) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
@@ -338,8 +310,6 @@ class MainActivity : AppCompatActivity() {
         }
         CookieManager.getInstance().setAcceptCookie(!incognito)
     }
-
-    // ---------- الصفحة الرئيسية واختصارات المواقع ----------
 
     private fun defaultShortcutSites(): List<Pair<String, String>> = listOf(
         "YouTube" to "https://www.youtube.com",
@@ -359,7 +329,7 @@ class MainActivity : AppCompatActivity() {
                 val obj = arr.getJSONObject(i)
                 list.add(obj.getString("name") to obj.getString("url"))
             }
-        } catch (_: Exception) { /* تجاهل أي خطأ تحليل وابدأ بقائمة فارغة */ }
+        } catch (_: Exception) { }
         return list
     }
 
@@ -374,7 +344,6 @@ class MainActivity : AppCompatActivity() {
         prefs.edit().putString("custom_sites", arr.toString()).apply()
     }
 
-    /** يبني صفحة اختصارات HTML (يوتيوب، تلغرام، واتساب، GitHub، XDA + مواقع المستخدم المضافة). */
     private fun buildHomePageHtml(): String {
         val allSites = defaultShortcutSites() + loadCustomSites()
         val tilesHtml = allSites.joinToString("\n") { (name, url) ->
@@ -444,7 +413,6 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /** جسر JavaScript بين صفحات الويب وواجهة أندرويد (يُستخدم بصفحة الاختصارات وزر تنزيل الفيديو). */
     inner class WebAppInterface {
         @JavascriptInterface
         fun openUrl(url: String) {
@@ -467,25 +435,19 @@ class MainActivity : AppCompatActivity() {
                     for (i in 0 until arr.length()) {
                         val obj = arr.getJSONObject(i)
                         labels[i] = obj.optString("label", "الجودة ${i + 1}")
-                        urls[i] = obj.optString("url")
+                        urls[i] = obj.optString("url", "") 
                     }
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle(R.string.choose_quality)
                         .setItems(labels) { _, which ->
-                            urls[which].let { downloadUrl(it) }
+                            downloadUrl(urls[which]) 
                         }
                         .show()
-                } catch (_: Exception) { /* تجاهل استجابة غير صالحة */ }
+                } catch (_: Exception) { }
             }
         }
     }
 
-    // ---------- VPN ----------
-
-    /**
-     * فتح تطبيق Proton VPN المجاني إن كان مثبتاً على الجهاز (لا يوجد SDK رسمي مجاني
-     * لدمج بروتون داخل تطبيقات الطرف الثالث). إن لم يكن مثبتاً يوجّه المستخدم لصفحته.
-     */
     private fun launchVpnApp() {
         val protonPackage = "ch.protonvpn.android"
         val launchIntent = packageManager.getLaunchIntentForPackage(protonPackage)
@@ -506,16 +468,8 @@ class MainActivity : AppCompatActivity() {
         private const val MENU_SHARE_LINK = 3
         private const val MENU_DOWNLOAD_LINK = 4
 
-        /** معرّف داخلي يميّز تبويب "الصفحة الرئيسية" عن أي رابط ويب حقيقي. */
         const val HOME_URL_MARKER = "startpage://home"
 
-        /**
-         * سكربت يُحقن بعد تحميل كل صفحة: يبحث عن وسوم <video> ويضيف زر تنزيل
-         * أسفل كل منها. عند الضغط يجمع كل روابط <source> المتاحة (الجودات المختلفة
-         * إن وُجدت) ويرسلها لأندرويد لعرضها كخيارات. يعمل مع الفيديو المباشر
-         * (روابط MP4 ونحوها)؛ لا يعمل مع منصات تشغّل الفيديو بطريقة مغلقة/محمية
-         * مثل يوتيوب، لأن هذه المنصات لا تعرض رابط فيديو مباشر أصلاً.
-         */
         const val VIDEO_DOWNLOAD_JS = """
         (function() {
             function parseSources(video) {
