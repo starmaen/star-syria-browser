@@ -19,21 +19,18 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # تجهيز بيئة الأندرويد بشكل احترافي
+      # تم ترقية هذه الأداة إلى الإصدار v4 لحل المشكلة
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
-      # قبول الرخص
       - name: Accept Android Licenses
         run: yes | sdkmanager --licenses || true
 
-      # إصلاح نسخة Gradle إلى 8.7
       - name: Fix Gradle Version to 8.7
         run: |
           find . -name "gradle-wrapper.properties" -exec sed -i 's/gradle-9.7.1-bin.zip/gradle-8.7-bin.zip/g' {} \;
           echo "Gradle version fixed."
 
-      # البناء الفعلي
       - name: Build APK
         run: |
           if [ -f "./gradlew" ]; then
@@ -44,7 +41,6 @@ jobs:
             gradle assembleDebug --stacktrace
           fi
 
-      # رفع الملف
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
