@@ -4,5 +4,6 @@ package com.starsyria.browser
 data class BrowserTab(
     var url: String,
     var title: String = "صفحة جديدة",
-    var faviconBytes: ByteArray? = null
+    var faviconBytes: ByteArray? = null,
+    var isIncognito: Boolean = false
 )

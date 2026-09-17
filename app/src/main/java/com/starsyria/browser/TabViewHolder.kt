@@ -9,7 +9,7 @@ class TabViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
     private val urlView: TextView = itemView.findViewById(R.id.tab_url)
 
     fun bind(tab: BrowserTab, onClick: () -> Unit) {
-        titleView.text = tab.title
+        titleView.text = if (tab.isIncognito) "🕵 ${tab.title}" else tab.title
         urlView.text = tab.url
         itemView.setOnClickListener { onClick() }
     }

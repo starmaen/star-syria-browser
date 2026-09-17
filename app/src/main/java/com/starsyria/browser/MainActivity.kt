@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tabsRecycler: RecyclerView
     private val openTabs = mutableListOf<BrowserTab>()
     private var currentTabIndex = 0
+    private var isIncognitoMode = false
 
     // محركات البحث الأساسية - يختارها المستخدم من الإعدادات
     private val searchEngines = mapOf(
@@ -53,6 +54,9 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<android.widget.ImageButton>(R.id.btn_tabs).setOnClickListener {
             drawerLayout.openDrawer(androidx.core.view.GravityCompat.END)
+        }
+        findViewById<android.widget.ImageButton>(R.id.btn_incognito).setOnClickListener {
+            toggleIncognitoMode()
         }
         findViewById<android.widget.ImageButton>(R.id.btn_vpn).setOnClickListener {
             launchVpnApp()
@@ -149,6 +153,7 @@ class MainActivity : AppCompatActivity() {
             override fun onBindViewHolder(holder: TabViewHolder, position: Int) {
                 holder.bind(openTabs[position]) {
                     currentTabIndex = position
+                    applyIncognitoWebSettings(openTabs[position].isIncognito)
                     webView.loadUrl(openTabs[position].url)
                     drawerLayout.closeDrawers()
                 }
@@ -157,8 +162,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openNewTab(url: String) {
-        openTabs.add(BrowserTab(url))
+        openTabs.add(BrowserTab(url, isIncognito = isIncognitoMode))
         currentTabIndex = openTabs.size - 1
+        applyIncognitoWebSettings(isIncognitoMode)
         webView.loadUrl(url)
         tabsRecycler.adapter?.notifyDataSetChanged()
     }
@@ -227,6 +233,45 @@ class MainActivity : AppCompatActivity() {
             setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, URLUtilFileName(url, null, null))
         }
         (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+    }
+
+    // ---------- التصفح الخفي (Incognito) ----------
+
+    /**
+     * تبديل وضع التصفح الخفي. أي تبويب جديد يُفتح بعدها لا يحفظ كوكيز أو كاش،
+     * ولا يُحفظ في سجل التصفح، وتُنظّف بيانات الجلسة عند إيقافه.
+     */
+    private fun toggleIncognitoMode() {
+        isIncognitoMode = !isIncognitoMode
+        updateIncognitoIndicator()
+        applyIncognitoWebSettings(isIncognitoMode)
+
+        val message = if (isIncognitoMode) getString(R.string.incognito_on) else getString(R.string.incognito_off)
+        android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+
+        if (!isIncognitoMode) {
+            // عند إيقاف الوضع الخفي: نظّف أي بيانات جلسة تراكمت أثناءه
+            CookieManager.getInstance().removeSessionCookies(null)
+            webView.clearHistory()
+        }
+    }
+
+    private fun updateIncognitoIndicator() {
+        val toolbar = findViewById<android.widget.LinearLayout>(R.id.toolbar_row)
+        toolbar.setBackgroundColor(
+            if (isIncognitoMode) android.graphics.Color.parseColor("#3A2E5C")
+            else android.graphics.Color.parseColor("#1E1E2E")
+        )
+    }
+
+    /** يضبط إعدادات WebView بحيث لا يحتفظ بكاش/كوكيز/بيانات نماذج أثناء التصفح الخفي. */
+    private fun applyIncognitoWebSettings(incognito: Boolean) {
+        webView.settings.apply {
+            cacheMode = if (incognito) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
+            saveFormData = !incognito
+            domStorageEnabled = !incognito
+        }
+        CookieManager.getInstance().setAcceptCookie(!incognito)
     }
 
     // ---------- VPN ----------

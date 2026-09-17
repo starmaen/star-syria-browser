@@ -17,4 +17,9 @@
     <string name="ctx_share_link">مشاركة الرابط</string>
     <string name="ctx_download_link">تنزيل الرابط</string>
     <string name="ctx_link_copied">تم نسخ الرابط</string>
+
+    <!-- التصفح الخفي -->
+    <string name="incognito_mode">التصفح الخفي</string>
+    <string name="incognito_on">تم تفعيل التصفح الخفي 🕵</string>
+    <string name="incognito_off">تم إيقاف التصفح الخفي</string>
 </resources>
