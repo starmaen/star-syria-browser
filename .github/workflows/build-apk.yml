@@ -19,14 +19,12 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      # تجهيز بيئة الأندرويد
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
       - name: Accept Android Licenses
         run: yes | sdkmanager --licenses || true
 
-      # الخطوة الأهم: تحميل نسخة Gradle 8.7 يدوياً واستخدامها
       - name: Download and Setup Gradle 8.7
         run: |
           echo "Downloading Gradle 8.7..."
@@ -34,12 +32,24 @@ jobs:
           unzip -q gradle-8.7-bin.zip
           echo "Gradle 8.7 is ready."
 
-      # البناء باستخدام النسخة التي تم تحميلها
       - name: Build APK
         run: |
-          cd $(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1 | xargs dirname)
+          # البحث عن مجلد المشروع
+          BUILD_GRADLE_PATH=$(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
+          if [ -z "$BUILD_GRADLE_PATH" ]; then
+            echo "Error: No build.gradle file found!"
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$BUILD_GRADLE_PATH")
+          cd "$PROJECT_DIR"
+          
+          # إنشاء ملف local.properties وهو السبب الرئيسي لفشل البناء في السيرفرات
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "Created local.properties with SDK path: $ANDROID_HOME"
+          
+          # البناء
           echo "Building in directory: $(pwd)"
-          ../gradle-8.7/bin/gradle assembleDebug --stacktrace
+          $GITHUB_WORKSPACE/gradle-8.7/bin/gradle assembleDebug --stacktrace --warning-mode all
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
