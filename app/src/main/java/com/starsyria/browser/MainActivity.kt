@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var tabsRecycler: RecyclerView
     private val openTabs = mutableListOf<BrowserTab>()
+    private val closedTabsStack = mutableListOf<BrowserTab>()
     private var currentTabIndex = 0
     private var isIncognitoMode = false
 
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         AdBlocker.loadDefaultList(this)
+        AdBlocker.autoUpdateIfDue(this)
 
         drawerLayout = findViewById(R.id.drawer_layout)
         tabsRecycler = findViewById(R.id.tabs_recycler)
@@ -54,6 +56,9 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<android.widget.ImageButton>(R.id.btn_tabs).setOnClickListener {
             drawerLayout.openDrawer(androidx.core.view.GravityCompat.END)
+        }
+        findViewById<android.widget.ImageButton>(R.id.btn_reopen_tab).setOnClickListener {
+            reopenLastClosedTab()
         }
         findViewById<android.widget.ImageButton>(R.id.btn_incognito).setOnClickListener {
             toggleIncognitoMode()
@@ -151,12 +156,16 @@ class MainActivity : AppCompatActivity() {
             }
             override fun getItemCount() = openTabs.size
             override fun onBindViewHolder(holder: TabViewHolder, position: Int) {
-                holder.bind(openTabs[position]) {
-                    currentTabIndex = position
-                    applyIncognitoWebSettings(openTabs[position].isIncognito)
-                    webView.loadUrl(openTabs[position].url)
-                    drawerLayout.closeDrawers()
-                }
+                holder.bind(
+                    openTabs[position],
+                    onClick = {
+                        currentTabIndex = position
+                        applyIncognitoWebSettings(openTabs[position].isIncognito)
+                        webView.loadUrl(openTabs[position].url)
+                        drawerLayout.closeDrawers()
+                    },
+                    onClose = { closeTab(position) }
+                )
             }
         }
     }
@@ -171,6 +180,37 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadInCurrentTab(url: String) {
         if (openTabs.isEmpty()) openNewTab(url) else webView.loadUrl(url)
+    }
+
+    /** يغلق تبويباً محدداً ويحفظه في مكدس التبويبات المغلقة لاسترجاعه لاحقاً. */
+    private fun closeTab(position: Int) {
+        if (position !in openTabs.indices) return
+        val removed = openTabs.removeAt(position)
+        closedTabsStack.add(removed)
+
+        if (openTabs.isEmpty()) {
+            openNewTab(defaultHomeUrl())
+        } else {
+            if (currentTabIndex >= openTabs.size) currentTabIndex = openTabs.size - 1
+            applyIncognitoWebSettings(openTabs[currentTabIndex].isIncognito)
+            webView.loadUrl(openTabs[currentTabIndex].url)
+        }
+        tabsRecycler.adapter?.notifyDataSetChanged()
+    }
+
+    /** يعيد فتح آخر تبويب مغلق (يدعم استرجاعات متعددة متتالية). */
+    private fun reopenLastClosedTab() {
+        if (closedTabsStack.isEmpty()) {
+            android.widget.Toast.makeText(this, getString(R.string.no_closed_tabs), android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val tab = closedTabsStack.removeAt(closedTabsStack.size - 1)
+        openTabs.add(tab)
+        currentTabIndex = openTabs.size - 1
+        applyIncognitoWebSettings(tab.isIncognito)
+        webView.loadUrl(tab.url)
+        tabsRecycler.adapter?.notifyDataSetChanged()
+        android.widget.Toast.makeText(this, getString(R.string.tab_reopened), android.widget.Toast.LENGTH_SHORT).show()
     }
 
     // ---------- قائمة السياق (الضغط المطوّل على الروابط) ----------

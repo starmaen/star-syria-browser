@@ -22,4 +22,18 @@
     <string name="incognito_mode">التصفح الخفي</string>
     <string name="incognito_on">تم تفعيل التصفح الخفي 🕵</string>
     <string name="incognito_off">تم إيقاف التصفح الخفي</string>
+
+    <!-- تحديث حظر الإعلانات -->
+    <string name="update_adblock_now">تحديث قائمة حظر الإعلانات الآن</string>
+    <string name="adblock_updating">جاري التحديث…</string>
+    <string name="adblock_update_success">تم التحديث — %1$d نطاق محظور</string>
+    <string name="adblock_update_failed">فشل التحديث، تحقق من الاتصال بالإنترنت</string>
+    <string name="adblock_never_updated">القائمة الافتراضية — %1$d نطاق محظور (لم يُحدَّث بعد)</string>
+    <string name="adblock_last_updated">%1$d نطاق محظور — آخر تحديث: %2$s</string>
+
+    <!-- التبويبات -->
+    <string name="close_tab">إغلاق التبويب</string>
+    <string name="reopen_closed_tab">استرجاع آخر تبويب مغلق</string>
+    <string name="no_closed_tabs">لا يوجد تبويبات مغلقة لاسترجاعها</string>
+    <string name="tab_reopened">تم استرجاع التبويب</string>
 </resources>

@@ -39,10 +39,35 @@ class SettingsActivity : AppCompatActivity() {
             Toast.makeText(this, "تم تنظيف الكاش وبيانات التصفح", Toast.LENGTH_SHORT).show()
         }
 
+        // تحديث قائمة حظر الإعلانات يدوياً + عرض حالة آخر تحديث
+        val statusView = findViewById<TextView>(R.id.tv_adblock_status)
+        updateAdblockStatusText(statusView)
+        findViewById<Button>(R.id.btn_update_adblock).setOnClickListener {
+            statusView.text = getString(R.string.adblock_updating)
+            AdBlocker.updateFromRemote(this) { count ->
+                if (count >= 0) {
+                    Toast.makeText(this, getString(R.string.adblock_update_success, count), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, getString(R.string.adblock_update_failed), Toast.LENGTH_SHORT).show()
+                }
+                updateAdblockStatusText(statusView)
+            }
+        }
+
         // رقم الإصدار أسفل شاشة الإعدادات
         val versionText = findViewById<TextView>(R.id.tv_version)
         val pInfo = packageManager.getPackageInfo(packageName, 0)
         versionText.text = getString(R.string.version_format, pInfo.versionName, pInfo.longVersionCode)
+    }
+
+    private fun updateAdblockStatusText(view: TextView) {
+        val last = AdBlocker.lastUpdateTime(this)
+        view.text = if (last == 0L) {
+            getString(R.string.adblock_never_updated, AdBlocker.blockedCount())
+        } else {
+            val date = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(last))
+            getString(R.string.adblock_last_updated, AdBlocker.blockedCount(), date)
+        }
     }
 
     private fun clearBrowsingData() {
